@@ -1,34 +1,73 @@
 package btree
 
-import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.Queue
+import scala.collection.mutable.{ArrayBuffer, Queue}
 
-case class Parameters(degree: Int = 10)
+/**
+  *
+  * @param degree
+  */
+case class Parameters(degree: Int = 5)
 
+/**
+  *
+  * @param parameters
+  * @tparam T type of values stored in the tree
+  */
 class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
-  case class Parameters(degree: Int = 10)
 
-  val maxChildrenNumber = parameters.degree * 2
+  private val minChildrenNumber: Int = parameters.degree
+  private val maxChildrenNumber: Int = parameters.degree * 2
 
-  case class Data(node: Option[Node], value: T)
+  /**
+    *
+    * @param node
+    * @param value
+    */
+  case class Data(node: Option[Node], var value: T)
 
   private var root_ = new Node()
 
-  def add(insertedValue: T) = {
-    if(!contains(insertedValue)) {
-      root_.add(insertedValue)
+  /**
+    * Inserts a value into the tree (only if it does not exist yet).
+    *
+    * @param insertedValue
+    */
+  def add(insertedValue: T): Unit = {
+    root_.get(insertedValue) match {
+      case (parentNode, index, false) => parentNode.insertInLeaf(index, insertedValue)
+      case _ => ()
     }
   }
 
-  def contains(searchedValue: T) = {
-    root_.find(searchedValue) match {
-      case Some(_) => true
-      case None => false
+  /**
+    * Returns true if the tree contains given value, false otherwise.
+    *
+    * @param searchedValue
+    * @return
+    */
+  def contains(searchedValue: T): Boolean = {
+    root_.get(searchedValue) match {
+      case (_, _, retVal) => retVal
     }
   }
 
-  def printLevels() = {
-    var queue = new Queue[Node]
+  /**
+    * Removes given value from the tree (only if it already exists).
+    *
+    * @param removedValue
+    */
+  def remove(removedValue: T): Unit = {
+    root_.get(removedValue) match {
+      case (parentNode, index, true) => parentNode.removeFromHere(index)
+      case _ => ()
+    }
+  }
+
+  /**
+    * Prints out tree contents in a BFS order (DEBUG).
+    */
+  def printLevels(): Unit = {
+    val queue = new Queue[Node]
     queue.enqueue(root_)
 
     while(queue.nonEmpty) {
@@ -43,7 +82,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
         }
       }
 
-      if(!node.lastChild.isEmpty) {
+      if(node.lastChild.isDefined) {
         queue.enqueue(node.lastChild.get)
       }
 
@@ -51,121 +90,236 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
     }
   }
 
-  class Node(var children: ListBuffer[Data] = ListBuffer[Data](),
-             val lastChild: Option[Node] = None,
+  /**
+    *
+    * @param children
+    * @param lastChild
+    * @param parent
+    */
+  class Node(var children: ArrayBuffer[Data] = ArrayBuffer[Data](),
+             var lastChild: Option[Node] = None,
              var parent: Option[Node] = None) {
-    def add(insertedValue: T): Unit = {
-      val insertNode = children.find {
-        case Data(_, nodeValue) => implicitly[StrictOrdering[T]].lessThan(insertedValue, nodeValue)
-      }.getOrElse(lastChild)
-
-      insertNode match {
-          //node falls in the middle of list
-        case Some(Data(Some(nextNode), _)) => nextNode.add(insertedValue)
-        case Some(Data(None, _)) => addToLeaf(Data(None, insertedValue))
-
-          //node belongs at the end
-        case Some(nextNode: Node) => nextNode.add(insertedValue)
-        case None => addToLeaf(Data(None, insertedValue))
+    def removeFromHere(pos: Int): Unit = {
+      if(lastChild.isEmpty) {
+        children.remove(pos)
+        rebalance()
       }
-    }//add
+      else {
+        val removedEntry = children(pos)
 
-    def remove(removedValue: T) = {
-      //throws if removedValue does not exist
-      val (superNode, pos) = get(removedValue).get
+        //set head of the node to the right as new separator
+        if(pos == children.size - 1) {
+          val nextNode = lastChild.get.getLeftMost
 
-      //TODO implement removal
-    }
+          children.update(pos, Data(removedEntry.node, nextNode.children.head.value))
+          nextNode.children = nextNode.children.tail
 
-    //get pair of ( node containing value, position in its children list )
-    def get(searchedValue: T): Option[(Node, Int)] = {
+          nextNode.rebalance()
+        }
+        else {
+          val nextNode = children(pos + 1).node.get.getLeftMost
+
+          children.update(pos, Data(removedEntry.node, nextNode.children.head.value))
+          nextNode.children = nextNode.children.tail
+
+          nextNode.rebalance()
+        }
+      }
+    }//removeFromHere
+
+    @scala.annotation.tailrec
+    private def getLeftMost: Node = {
+      children.head.node match {
+        case Some(nextNode) => nextNode.getLeftMost
+        case None => this
+      }
+    }//getLeftMost
+
+    private def getLeftSiblingWithSep: Option[(Node, Int)] = {
       val comparator = implicitly[StrictOrdering[T]]
 
-      def searchFor(sVal: T): (Option[(Data, Int)], Boolean) = {
-        for(el <- children.zipWithIndex) {
-          if(comparator.equal(sVal, el._1.value)) return (Some(el), true)
-          else if(comparator.lessThan(sVal, el._1.value)) return (Some(el), false)
-        }
+      parent match {
+        case None => None
+        case Some(parentNode) => {
+          val leftVal = children.head.value
+          val separatorIndex = parentNode.children.indexWhere(el => comparator.lessThan(leftVal, el.value))
 
-        (None, false)
-      }
-
-      searchFor(searchedValue) match {
-        case ( Some((_, pos)), true ) => Some((this, pos))
-        case ( Some((Data(Some(nextNode), _), _)), false ) => nextNode.get(searchedValue)
-        case ( Some((Data(None, _), _)), false ) => None
-        case ( None, _ ) => {
-          lastChild match {
-            case Some(nextNode) => nextNode.get(searchedValue)
-            case None => None
+          separatorIndex match {
+            case 0 => None
+            case -1 => Some(parentNode.children.last.node.get, parentNode.children.size - 1)
+            case _ => Some(parentNode.children(separatorIndex - 1).node.get, separatorIndex)
           }
         }
+      }
+    }//getLeftSibling
+
+    private def getRightSiblingWithSep: Option[(Node, Int)] = {
+      val comparator = implicitly[StrictOrdering[T]]
+
+      parent match {
+        case None => None
+        case Some(parentNode) => {
+          val leftVal = children.head.value
+          val separatorIndex = parentNode.children.indexWhere(el => comparator.lessThan(leftVal, el.value))
+
+          separatorIndex match {
+            case sepVal if sepVal == parentNode.children.size - 1 => Some(parentNode.lastChild.get, separatorIndex)
+            case -1 => None
+            case _ => Some(parentNode.children(separatorIndex + 1).node.get, separatorIndex)
+          }
+        }
+      }
+    }//getRightSibling
+
+    private def isDeficient: Boolean = {
+      parent match {
+        case None => false
+        case Some(_) => children.size < minChildrenNumber
+      }
+    }//isDeficient
+
+    private def rebalance(): Unit = {
+      if(isDeficient) {
+        val parentNode = parent.get
+        val rightSiblingWithSep = getRightSiblingWithSep
+
+        //right sibling has enough children
+        for((sibling, separatorValue) <- rightSiblingWithSep if sibling.children.size > minChildrenNumber) {
+          val separator = parentNode.children(separatorValue)
+          children += Data(lastChild, separator.value)
+
+          lastChild = sibling.children.head.node
+          separator.value = sibling.children.head.value
+          sibling.children.remove(0)
+
+          return
+        }
+
+        val leftSiblingWithSep = getLeftSiblingWithSep
+
+        //left sibling has enough children
+        for((sibling, separatorValue) <- leftSiblingWithSep if sibling.children.size > minChildrenNumber) {
+          val separator = parentNode.children(separatorValue)
+          Data(sibling.lastChild, separator.value) +=: children
+
+          sibling.lastChild = sibling.children.last.node
+          separator.value = sibling.children.last.value
+          sibling.children.remove(sibling.children.size - 1)
+
+          return
+        }
+
+        //merge this node with right sibling
+        for((sibling, separatorValue) <- rightSiblingWithSep) {
+          val separator = parentNode.children(separatorValue)
+
+          children += Data(lastChild, separator.value)
+          children ++= sibling.children
+          lastChild = sibling.lastChild
+
+          if(separatorValue == parentNode.children.size - 1) {
+            parentNode.lastChild = Some(this)
+          }
+          else {
+            parentNode.children.update(separatorValue + 1,
+              Data(Some(this), parentNode.children(separatorValue + 1).value))
+          }
+
+          parentNode.children.remove(separatorValue)
+
+          if(parentNode.parent.isEmpty && parentNode.children.isEmpty) {
+            lastChild = None
+            root_ = this
+          }
+          else
+            parentNode.rebalance()
+
+          return
+        }
+
+        //merge this node with left sibling
+        for((sibling, separatorValue) <- leftSiblingWithSep) {
+          val separator = parentNode.children(separatorValue)
+
+          val newChildren = sibling.children :+ Data(separator.node.get.lastChild, separator.value)
+          children = newChildren ++ children
+
+          parentNode.children.remove(separatorValue)
+
+          if(parentNode.parent.isEmpty && parentNode.children.isEmpty) {
+            lastChild = None
+            root_ = this
+          }
+          else
+            parentNode.rebalance()
+        }
+      }
+    }//rebalance
+
+    def get(searchedValue: T): (Node, Int, Boolean) = {
+      val comparator = implicitly[StrictOrdering[T]]
+
+      for((elem, index) <- children.zipWithIndex) {
+        if(comparator.equal(searchedValue, elem.value))
+          return (this, index, true)
+        else if(comparator.lessThan(searchedValue, elem.value))
+          elem.node match {
+            case None => return (this, index, false)
+            case Some(nextNode) => return nextNode.get(searchedValue)
+          }
+      }
+
+      lastChild match {
+        case None => (this, children.size, false)
+        case Some(nextNode) => nextNode.get(searchedValue)
       }
     }//get
 
-    def find(searchedValue: T): Option[T] = {
-      val comparator = implicitly[StrictOrdering[T]]
-
-      def searchFor(sVal: T): (Option[Data], Boolean) = {
-        for(el <- children) {
-          if(comparator.equal(sVal, el.value)) return (Some(el), true)
-          else if(comparator.lessThan(sVal, el.value)) return (Some(el), false)
-        }
-
-        (None, false)
-      }
-
-      searchFor(searchedValue: T) match {
-        case ( Some(Data(_, retVal)), true ) => Some(retVal)
-        case ( Some(Data(Some(nextNode), _)), false ) => nextNode.find(searchedValue)
-        case ( Some(Data(None, _)), false ) => None
-        case ( None, _ ) => {
-          lastChild match {
-            case Some(nextNode) => nextNode.find(searchedValue)
-            case None => None
-          }
-        }
-      }
-    }//find
-
-    private def addToLeaf(valData: Data): Unit = {
-      val splitIndex = children.indexWhere(el => implicitly[StrictOrdering[T]].lessThan(valData.value, el.value))
-
-      if(splitIndex == -1) {
-        children += valData
-      }
-      else {
-        val splitted = children.splitAt(splitIndex)
-
-        children = splitted._1 ++: valData +: splitted._2
-      }
+    def insertInLeaf(pos: Int, insertedValue: T): Unit = {
+      children.insert(pos, Data(None, insertedValue))
 
       if(children.size > maxChildrenNumber) {
-        val middleSplit = children.splitAt(children.size / 2)
-        val midVal = middleSplit._2.head
+        splitToParent
+      }
+    }//insertInLeaf
 
-        parent match {
-            //add to Non-Root
-          case Some(parentNode) => {
-            children = middleSplit._2.tail
-            val newNode = new Node(middleSplit._1, midVal.node, parent)
+    private def splitToParent = {
+      val halfSize = children.size / 2
+      val middleSplit = (children.take(halfSize), children(halfSize), children.drop(halfSize + 1))
 
-            parentNode.addToLeaf(Data(Some(newNode), midVal.value))
-          }
+      parent match {
+        //add to Non-Root
+        case Some(parentNode) => {
+          children = middleSplit._3
+          val newNode = new Node(middleSplit._1, middleSplit._2.node, parent)
 
-            //add to Root
-          case None => {
-            val leftNode = new Node(middleSplit._1, midVal.node)
-            val rightNode = new Node(middleSplit._2.tail, lastChild)
-            val newRoot = new Node(ListBuffer[Data](Data(Some(leftNode), midVal.value)), Some(rightNode))
+          parentNode.addToNode(Data(Some(newNode), middleSplit._2.value))
+        }
 
-            leftNode.parent = Some(newRoot)
-            rightNode.parent = Some(newRoot)
+        //add to Root
+        case None => {
+          val leftNode = new Node(middleSplit._1, middleSplit._2.node)
+          val rightNode = new Node(middleSplit._3, lastChild)
+          val newRoot = new Node(ArrayBuffer[Data](Data(Some(leftNode), middleSplit._2.value)), Some(rightNode))
 
-            root_ = newRoot
-          }
+          leftNode.parent = Some(newRoot)
+          rightNode.parent = Some(newRoot)
+
+          root_ = newRoot
         }
       }
+    }//splitToParent
+
+    private def addToNode(valData: Data): Unit = {
+      val insertIndex = children.indexWhere(el => implicitly[StrictOrdering[T]].lessThan(valData.value, el.value))
+
+      if(insertIndex == -1)
+        children += valData
+      else
+        children.insert(insertIndex, valData)
+
+      if(children.size > maxChildrenNumber)
+        splitToParent
     }//addToLeaf
 
   }
