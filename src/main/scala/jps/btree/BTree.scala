@@ -1,4 +1,4 @@
-package btree
+package jps.btree
 
 import scala.collection.mutable.{ArrayBuffer, Queue}
 
@@ -91,14 +91,24 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
   }
 
   /**
+    * Represents a single node in the BTree
     *
-    * @param children
-    * @param lastChild
+    * @param children ArrayBuffer of separators with nodes belonging before them
+    * @param lastChild the child node that belongs after the last separator value
     * @param parent
     */
   class Node(var children: ArrayBuffer[Data] = ArrayBuffer[Data](),
              var lastChild: Option[Node] = None,
              var parent: Option[Node] = None) {
+    /**
+      * Remove value at the sepcified position from a node
+      * by either removing it from leaf,
+      * or moving the leftmost value from the right neighboring tree to it.
+      *
+      * Issues rebalance at an appropriate node.
+      *
+      * @param pos position which shall be removed
+      */
     def removeFromHere(pos: Int): Unit = {
       if(lastChild.isEmpty) {
         children.remove(pos)
@@ -256,6 +266,14 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
       }
     }//rebalance
 
+    /**
+      * Gets a parent node where the searched value belongs,
+      * along with the appropriate position and information
+      * whether the value already exists.
+      *
+      * @param searchedValue
+      * @return ( parent node, position in its array, indication whether the value already exists )
+      */
     def get(searchedValue: T): (Node, Int, Boolean) = {
       val comparator = implicitly[StrictOrdering[T]]
 
@@ -275,6 +293,14 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
       }
     }//get
 
+    /**
+      * Inserts given value at the specified position.
+      *
+      * Performs node split if needed.
+      *
+      * @param pos
+      * @param insertedValue
+      */
     def insertInLeaf(pos: Int, insertedValue: T): Unit = {
       children.insert(pos, Data(None, insertedValue))
 

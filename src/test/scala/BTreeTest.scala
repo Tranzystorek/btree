@@ -1,6 +1,6 @@
-import btree.CustomStrictOrderings._
-import btree.Parameters
-import btree.BTree
+import jps.btree.CustomStrictOrderings._
+import jps.btree.Parameters
+import jps.btree.BTree
 
 class BTreeTest extends org.scalatest.FunSuite {
   test("when value is inserted, BTree contains it") {

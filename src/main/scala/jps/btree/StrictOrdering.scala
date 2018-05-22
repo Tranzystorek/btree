@@ -1,5 +1,11 @@
-package btree
+package jps.btree
 
+/**
+  * Defines strict ordering rules for type required to be able
+  * to store values in a BTree
+  *
+  * @tparam T
+  */
 trait StrictOrdering[-T] {
   def lessThan(a: T, b: T): Boolean
   def equal(a: T, b: T): Boolean
