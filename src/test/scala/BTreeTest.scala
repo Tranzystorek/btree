@@ -1,5 +1,4 @@
 import jps.btree.CustomStrictOrderings._
-import jps.btree.Parameters
 import jps.btree.BTree
 
 class BTreeTest extends org.scalatest.FunSuite {
@@ -33,9 +32,9 @@ class BTreeTest extends org.scalatest.FunSuite {
   }
 
   test("when many values are inserted, BTree contains them") {
-    var btree = new BTree[Int](Parameters(2))
+    val btree = new BTree[Int]
 
-    for(i <- (1 to 7)) {
+    for(i <- (1 to 11)) {
       btree.add(i)
     }
 
@@ -46,10 +45,14 @@ class BTreeTest extends org.scalatest.FunSuite {
     assert(btree.contains(5))
     assert(btree.contains(6))
     assert(btree.contains(7))
+    assert(btree.contains(8))
+    assert(btree.contains(9))
+    assert(btree.contains(10))
+    assert(btree.contains(11))
   }
 
   test("BTree works with strings") {
-    var btree = new BTree[String]
+    val btree = new BTree[String]
     btree.add("Abcd")
 
     assert(btree.contains("Abcd"))
