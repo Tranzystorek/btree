@@ -1,5 +1,6 @@
 package jps.btree
 
+import scala.annotation.tailrec
 import scala.collection.mutable.{ArrayBuffer, Queue}
 
 /**
@@ -91,7 +92,8 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
   }
 
   /**
-    * Represents a single node in the BTree
+    * Represents a single node in the BTree.
+    * Parent is optional because BTree's root doesn't have one.
     *
     * @param children ArrayBuffer of separators with nodes belonging before them
     * @param lastChild the child node that belongs after the last separator value
@@ -137,7 +139,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
       }
     }//removeFromHere
 
-    @scala.annotation.tailrec
+    @tailrec
     private def getLeftMost: Node = {
       children.head.node match {
         case Some(nextNode) => nextNode.getLeftMost
@@ -161,7 +163,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
           }
         }
       }
-    }//getLeftSibling
+    }//getLeftSiblingWithSep
 
     private def getRightSiblingWithSep: Option[(Node, Int)] = {
       val comparator = implicitly[StrictOrdering[T]]
@@ -179,7 +181,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
           }
         }
       }
-    }//getRightSibling
+    }//getRightSiblingWithSep
 
     private def isDeficient: Boolean = {
       parent match {
@@ -188,80 +190,69 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
       }
     }//isDeficient
 
+    @tailrec
     private def rebalance(): Unit = {
       if(isDeficient) {
         val parentNode = parent.get
         val rightSiblingWithSep = getRightSiblingWithSep
+        lazy val leftSiblingWithSep = getLeftSiblingWithSep
 
-        //right sibling has enough children
-        for((sibling, separatorValue) <- rightSiblingWithSep if sibling.children.size > minChildrenNumber) {
-          val separator = parentNode.children(separatorValue)
-          children += Data(lastChild, separator.value)
+        ( rightSiblingWithSep, leftSiblingWithSep ) match {
+          case ( Some((sibling, separatorValue)), _ ) if sibling.children.size > minChildrenNumber => {
+            val separator = parentNode.children(separatorValue)
+            children += Data(lastChild, separator.value)
 
-          lastChild = sibling.children.head.node
-          separator.value = sibling.children.head.value
-          sibling.children.remove(0)
-
-          return
-        }
-
-        val leftSiblingWithSep = getLeftSiblingWithSep
-
-        //left sibling has enough children
-        for((sibling, separatorValue) <- leftSiblingWithSep if sibling.children.size > minChildrenNumber) {
-          val separator = parentNode.children(separatorValue)
-          Data(sibling.lastChild, separator.value) +=: children
-
-          sibling.lastChild = sibling.children.last.node
-          separator.value = sibling.children.last.value
-          sibling.children.remove(sibling.children.size - 1)
-
-          return
-        }
-
-        //merge this node with right sibling
-        for((sibling, separatorValue) <- rightSiblingWithSep) {
-          val separator = parentNode.children(separatorValue)
-
-          children += Data(lastChild, separator.value)
-          children ++= sibling.children
-          lastChild = sibling.lastChild
-
-          if(separatorValue == parentNode.children.size - 1) {
-            parentNode.lastChild = Some(this)
+            lastChild = sibling.children.head.node
+            separator.value = sibling.children.head.value
+            sibling.children.remove(0)
           }
-          else {
-            parentNode.children.update(separatorValue + 1,
-              Data(Some(this), parentNode.children(separatorValue + 1).value))
+          case ( _, Some((sibling, separatorValue)) ) if sibling.children.size > minChildrenNumber => {
+            val separator = parentNode.children(separatorValue)
+            Data(sibling.lastChild, separator.value) +=: children
+
+            sibling.lastChild = sibling.children.last.node
+            separator.value = sibling.children.last.value
+            sibling.children.remove(sibling.children.size - 1)
           }
+          case ( Some((sibling, separatorValue)), _ ) => {
+            val separator = parentNode.children(separatorValue)
 
-          parentNode.children.remove(separatorValue)
+            children += Data(lastChild, separator.value)
+            children ++= sibling.children
+            lastChild = sibling.lastChild
 
-          if(parentNode.parent.isEmpty && parentNode.children.isEmpty) {
-            lastChild = None
-            root_ = this
+            if(separatorValue == parentNode.children.size - 1) {
+              parentNode.lastChild = Some(this)
+            }
+            else {
+              parentNode.children.update(separatorValue + 1,
+                Data(Some(this), parentNode.children(separatorValue + 1).value))
+            }
+
+            parentNode.children.remove(separatorValue)
+
+            if(parentNode.parent.isEmpty && parentNode.children.isEmpty) {
+              lastChild = None
+              root_ = this
+            }
+            else
+              parentNode.rebalance()
           }
-          else
-            parentNode.rebalance()
+          case ( _, Some((sibling, separatorValue)) ) => {
+            val separator = parentNode.children(separatorValue)
 
-          return
-        }
+            val newChildren = sibling.children :+ Data(separator.node.get.lastChild, separator.value)
+            children = newChildren ++ children
 
-        //merge this node with left sibling
-        for((sibling, separatorValue) <- leftSiblingWithSep) {
-          val separator = parentNode.children(separatorValue)
+            parentNode.children.remove(separatorValue)
 
-          val newChildren = sibling.children :+ Data(separator.node.get.lastChild, separator.value)
-          children = newChildren ++ children
-
-          parentNode.children.remove(separatorValue)
-
-          if(parentNode.parent.isEmpty && parentNode.children.isEmpty) {
-            lastChild = None
-            root_ = this
+            if(parentNode.parent.isEmpty && parentNode.children.isEmpty) {
+              lastChild = None
+              root_ = this
+            }
+            else
+              parentNode.rebalance()
           }
-          else
-            parentNode.rebalance()
         }
       }
     }//rebalance
@@ -274,22 +265,25 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
       * @param searchedValue
       * @return ( parent node, position in its array, indication whether the value already exists )
       */
-    def get(searchedValue: T): (Node, Int, Boolean) = {
+    @tailrec
+    final def get(searchedValue: T): (Node, Int, Boolean) = {
       val comparator = implicitly[StrictOrdering[T]]
 
-      for((elem, index) <- children.zipWithIndex) {
-        if(comparator.equal(searchedValue, elem.value))
-          return (this, index, true)
-        else if(comparator.lessThan(searchedValue, elem.value))
+      children.zipWithIndex.find(el =>
+        comparator.equal(searchedValue, el._1.value)
+          || comparator.lessThan(searchedValue, el._1.value)) match {
+        case Some((elem, index)) if comparator.equal(searchedValue, elem.value) => (this, index, true)
+        case Some((elem, index)) => {
           elem.node match {
-            case None => return (this, index, false)
-            case Some(nextNode) => return nextNode.get(searchedValue)
+            case None => (this, index, false)
+            case Some(nextNode) => nextNode.get(searchedValue)
           }
-      }
-
-      lastChild match {
-        case None => (this, children.size, false)
-        case Some(nextNode) => nextNode.get(searchedValue)
+        }
+        case None =>
+          lastChild match {
+            case None => (this, children.size, false)
+            case Some(nextNode) => nextNode.get(searchedValue)
+          }
       }
     }//get
 
