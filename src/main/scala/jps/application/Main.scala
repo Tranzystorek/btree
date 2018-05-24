@@ -14,15 +14,24 @@ object Main extends App {
   private val rmCmd = raw"""\s*rm\s*($numberRegex)\s*""".r
   private val existsCmd = raw"""\s*is\s*($numberRegex)\s*""".r
   private val printCmd = """\s*print\s*""".r
+  private val helpCmd = """\s*help\s*""".r
   private val exitCmd = """\s*exit\s*""".r
+
+  private def printHelp: Unit = {
+    println("Commands:\n" +
+      "add [Int] - add value to BTree\n" +
+      "rm [Int] - remove value from BTree\n" +
+      "is [Int] - check if a value exists in BTree\n" +
+      "print - print a BST view of BTree\n" +
+      "help - print this help prompt\n" +
+      "exit - exit program")
+  }
 
   @tailrec
   final def mainLoop: Unit = {
-    val line = StdIn.readLine()
-
     print("> ")
 
-    line match {
+    StdIn.readLine match {
       case addCmd(insertedVal) => {
         val insertedInt = insertedVal.toInt
 
@@ -54,17 +63,16 @@ object Main extends App {
         btree.printLevels()
         mainLoop
       }
+      case helpCmd(_*) => {
+        printHelp
+        mainLoop
+      }
       case exitCmd(_*) => println("Exiting...")
       case _ => println("Incorrect input"); mainLoop
     }
   }
 
   //main
-  println("Commands:\n" +
-    "add [Int] - add value to BTree\n" +
-    "rm [Int] - remove value from BTree\n" +
-    "is [Int] - check if a value exists in BTree\n" +
-    "print - print a BST view of BTree\n" +
-    "exit - exit program")
+  printHelp
   mainLoop
 }
