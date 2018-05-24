@@ -121,7 +121,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
 
         //set head of the node to the right as new separator
         if(pos == children.size - 1) {
-          val nextNode = lastChild.get.getLeftMost
+          val nextNode = lastChild.get.getLeftmostNode
 
           children.update(pos, Data(removedEntry.node, nextNode.children.head.value))
           nextNode.children = nextNode.children.tail
@@ -129,7 +129,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
           nextNode.rebalance()
         }
         else {
-          val nextNode = children(pos + 1).node.get.getLeftMost
+          val nextNode = children(pos + 1).node.get.getLeftmostNode
 
           children.update(pos, Data(removedEntry.node, nextNode.children.head.value))
           nextNode.children = nextNode.children.tail
@@ -140,12 +140,12 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
     }//removeFromHere
 
     @tailrec
-    private def getLeftMost: Node = {
+    private def getLeftmostNode: Node = {
       children.head.node match {
-        case Some(nextNode) => nextNode.getLeftMost
+        case Some(nextNode) => nextNode.getLeftmostNode
         case None => this
       }
-    }//getLeftMost
+    }//getLeftmostNode
 
     private def getLeftSiblingWithSep: Option[(Node, Int)] = {
       val comparator = implicitly[StrictOrdering[T]]
