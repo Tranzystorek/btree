@@ -68,27 +68,36 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
     * Prints out tree contents in a BFS order (DEBUG).
     */
   def printLevels(): Unit = {
-    val queue = new Queue[Node]
-    queue.enqueue(root)
+    val queue = new Queue[(Node, Int)]
+    queue.enqueue((root, 0))
+
+    var currentParent = 0
 
     while (queue.nonEmpty) {
-      val node = queue.dequeue()
+      val (node, parentNumber) = queue.dequeue()
+
+      if (currentParent < parentNumber) {
+        currentParent = parentNumber
+        print("\n")
+      }
+      else
+        print("| ")
 
       for (el <- node.children) {
         print(el.value + " ")
 
         el match {
-          case Data(Some(nextNode), _) => queue.enqueue(nextNode)
+          case Data(Some(nextNode), _) => queue.enqueue((nextNode, parentNumber + 1))
           case _ => ()
         }
       }
 
       if (node.lastChild.isDefined) {
-        queue.enqueue(node.lastChild.get)
+        queue.enqueue((node.lastChild.get, parentNumber + 1))
       }
-
-      print("\n")
     }
+
+    print("\n")
   }
 
   /**
@@ -159,7 +168,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
           separatorIndex match {
             case 0 => None
             case -1 => Some(parentNode.children.last.node.get, parentNode.children.size - 1)
-            case _ => Some(parentNode.children(separatorIndex - 1).node.get, separatorIndex)
+            case _ => Some(parentNode.children(separatorIndex - 1).node.get, separatorIndex - 1)
           }
         }
       }
@@ -203,12 +212,19 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
             children += Data(lastChild, separator.value)
 
             lastChild = sibling.children.head.node
+
+            if (lastChild.isDefined)
+              lastChild.get.parent = Some(this)
+
             separator.value = sibling.children.head.value
             sibling.children.remove(0)
           }
           case (_, Some((sibling, separatorValue))) if sibling.children.size > minChildrenNumber => {
             val separator = parentNode.children(separatorValue)
             Data(sibling.lastChild, separator.value) +=: children
+
+            if (children.head.node.isDefined)
+              children.head.node.get.parent = Some(this)
 
             sibling.lastChild = sibling.children.last.node
             separator.value = sibling.children.last.value
@@ -220,6 +236,14 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
             children += Data(lastChild, separator.value)
             children ++= sibling.children
             lastChild = sibling.lastChild
+
+            if (sibling.lastChild.isDefined) {
+              for (Data(Some(childNode), _) <- sibling.children) {
+                childNode.parent = Some(this)
+              }
+
+              sibling.lastChild.get.parent = Some(this)
+            }
 
             if (separatorValue == parentNode.children.size - 1) {
               parentNode.lastChild = Some(this)
@@ -233,6 +257,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
 
             if (parentNode.parent.isEmpty && parentNode.children.isEmpty) {
               lastChild = None
+              parent = None
               root = this
             }
             else
@@ -244,10 +269,15 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
             val newChildren = sibling.children :+ Data(separator.node.get.lastChild, separator.value)
             children = newChildren ++ children
 
+            for (Data(Some(childNode), _) <- sibling.children) {
+              childNode.parent = Some(this)
+            }
+
             parentNode.children.remove(separatorValue)
 
             if (parentNode.parent.isEmpty && parentNode.children.isEmpty) {
               lastChild = None
+              parent = None
               root = this
             }
             else
@@ -303,23 +333,53 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
       }
     } //insertInLeaf
 
-    private def splitToParent = {
+    @tailrec
+    private def splitToParent: Unit = {
       val halfSize = children.size / 2
       val middleSplit = (children.take(halfSize), children(halfSize), children.drop(halfSize + 1))
 
       parent match {
-        //add to Non-Root
+        //split Non-Root
         case Some(parentNode) => {
-          children = middleSplit._3
           val newNode = new Node(middleSplit._1, middleSplit._2.node, parent)
 
+          children = middleSplit._3
+
+          //switch children
+          if (lastChild.isDefined) {
+            for (Data(Some(childNode), _) <- newNode.children) {
+              childNode.parent = Some(newNode)
+            }
+
+            newNode.lastChild.get.parent = Some(newNode)
+          }
+
           parentNode.addToNode(Data(Some(newNode), middleSplit._2.value))
+
+          if (parentNode.children.size > maxChildrenNumber)
+            parentNode.splitToParent
         }
 
-        //add to Root
+        //split Root
         case None => {
           val leftNode = new Node(middleSplit._1, middleSplit._2.node)
           val rightNode = new Node(middleSplit._3, lastChild)
+
+          //switch parents
+          if(lastChild.isDefined) {
+            for (Data(Some(childNode), _) <- leftNode.children) {
+              childNode.parent = Some(leftNode)
+            }
+
+            leftNode.lastChild.get.parent = Some(leftNode)
+
+            for (Data(Some(childNode), _) <- rightNode.children) {
+              childNode.parent = Some(rightNode)
+            }
+
+            rightNode.lastChild.get.parent = Some(rightNode)
+          }
+
           val newRoot = new Node(ArrayBuffer[Data](Data(Some(leftNode), middleSplit._2.value)), Some(rightNode))
 
           leftNode.parent = Some(newRoot)
@@ -337,9 +397,6 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
         children += valData
       else
         children.insert(insertIndex, valData)
-
-      if (children.size > maxChildrenNumber)
-        splitToParent
     } //addToLeaf
 
   }
