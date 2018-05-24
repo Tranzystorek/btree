@@ -2,6 +2,8 @@ package jps.application
 
 import jps.btree.BTree
 import jps.btree.CustomStrictOrderings._
+
+import scala.annotation.tailrec
 import scala.io.StdIn
 
 object Main extends App {
@@ -13,7 +15,8 @@ object Main extends App {
   private val printCmd = """print\s*""".r
   private val exitCmd = """exit\s*""".r
 
-  def mainLoop: Unit = {
+  @tailrec
+  final def mainLoop: Unit = {
     val line = StdIn.readLine()
 
     print("> ")
