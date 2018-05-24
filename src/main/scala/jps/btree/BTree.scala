@@ -26,7 +26,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
     */
   case class Data(node: Option[Node], var value: T)
 
-  private var root_ = new Node()
+  private var root = new Node()
 
   /**
     * Inserts a value into the tree (only if it does not exist yet).
@@ -34,7 +34,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
     * @param insertedValue
     */
   def add(insertedValue: T): Unit = {
-    root_.get(insertedValue) match {
+    root.get(insertedValue) match {
       case (parentNode, index, false) => parentNode.insertInLeaf(index, insertedValue)
       case _ => ()
     }
@@ -47,7 +47,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
     * @return
     */
   def contains(searchedValue: T): Boolean = {
-    root_.get(searchedValue) match {
+    root.get(searchedValue) match {
       case (_, _, retVal) => retVal
     }
   }
@@ -58,7 +58,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
     * @param removedValue
     */
   def remove(removedValue: T): Unit = {
-    root_.get(removedValue) match {
+    root.get(removedValue) match {
       case (parentNode, index, true) => parentNode.removeFromHere(index)
       case _ => ()
     }
@@ -69,7 +69,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
     */
   def printLevels(): Unit = {
     val queue = new Queue[Node]
-    queue.enqueue(root_)
+    queue.enqueue(root)
 
     while(queue.nonEmpty) {
       val node = queue.dequeue()
@@ -233,7 +233,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
 
             if(parentNode.parent.isEmpty && parentNode.children.isEmpty) {
               lastChild = None
-              root_ = this
+              root = this
             }
             else
               parentNode.rebalance()
@@ -248,7 +248,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
 
             if(parentNode.parent.isEmpty && parentNode.children.isEmpty) {
               lastChild = None
-              root_ = this
+              root = this
             }
             else
               parentNode.rebalance()
@@ -325,7 +325,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
           leftNode.parent = Some(newRoot)
           rightNode.parent = Some(newRoot)
 
-          root_ = newRoot
+          root = newRoot
         }
       }
     }//splitToParent
