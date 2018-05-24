@@ -9,11 +9,12 @@ import scala.io.StdIn
 object Main extends App {
   private val btree = new BTree[Int]
 
-  private val addCmd = """add\s*(0|-?[1-9]\d*)\s*""".r
-  private val rmCmd = """rm\s*(0|-?[1-9]\d*)\s*""".r
-  private val existsCmd = """is\s*(0|-?[1-9]\d*)\s*""".r
-  private val printCmd = """print\s*""".r
-  private val exitCmd = """exit\s*""".r
+  private val numberRegex = "0|-?[1-9]\\d*"
+  private val addCmd = raw"""\s*add\s*($numberRegex)\s*""".r
+  private val rmCmd = raw"""\s*rm\s*($numberRegex)\s*""".r
+  private val existsCmd = raw"""\s*is\s*($numberRegex)\s*""".r
+  private val printCmd = """\s*print\s*""".r
+  private val exitCmd = """\s*exit\s*""".r
 
   @tailrec
   final def mainLoop: Unit = {
