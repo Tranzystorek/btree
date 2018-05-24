@@ -71,10 +71,10 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
     val queue = new Queue[Node]
     queue.enqueue(root)
 
-    while(queue.nonEmpty) {
+    while (queue.nonEmpty) {
       val node = queue.dequeue()
 
-      for(el <- node.children) {
+      for (el <- node.children) {
         print(el.value + " ")
 
         el match {
@@ -83,7 +83,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
         }
       }
 
-      if(node.lastChild.isDefined) {
+      if (node.lastChild.isDefined) {
         queue.enqueue(node.lastChild.get)
       }
 
@@ -95,7 +95,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
     * Represents a single node in the BTree.
     * Parent is optional because BTree's root doesn't have one.
     *
-    * @param children ArrayBuffer of separators with nodes belonging before them
+    * @param children  ArrayBuffer of separators with nodes belonging before them
     * @param lastChild the child node that belongs after the last separator value
     * @param parent
     */
@@ -112,7 +112,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
       * @param pos position which shall be removed
       */
     def removeFromHere(pos: Int): Unit = {
-      if(lastChild.isEmpty) {
+      if (lastChild.isEmpty) {
         children.remove(pos)
         rebalance()
       }
@@ -120,7 +120,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
         val removedEntry = children(pos)
 
         //set head of the node to the right as new separator
-        if(pos == children.size - 1) {
+        if (pos == children.size - 1) {
           val nextNode = lastChild.get.getLeftmostNode
 
           children.update(pos, Data(removedEntry.node, nextNode.children.head.value))
@@ -137,7 +137,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
           nextNode.rebalance()
         }
       }
-    }//removeFromHere
+    } //removeFromHere
 
     @tailrec
     private def getLeftmostNode: Node = {
@@ -145,7 +145,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
         case Some(nextNode) => nextNode.getLeftmostNode
         case None => this
       }
-    }//getLeftmostNode
+    } //getLeftmostNode
 
     private def getLeftSiblingWithSep: Option[(Node, Int)] = {
       val comparator = implicitly[StrictOrdering[T]]
@@ -163,7 +163,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
           }
         }
       }
-    }//getLeftSiblingWithSep
+    } //getLeftSiblingWithSep
 
     private def getRightSiblingWithSep: Option[(Node, Int)] = {
       val comparator = implicitly[StrictOrdering[T]]
@@ -181,24 +181,24 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
           }
         }
       }
-    }//getRightSiblingWithSep
+    } //getRightSiblingWithSep
 
     private def isDeficient: Boolean = {
       parent match {
         case None => false
         case Some(_) => children.size < minChildrenNumber
       }
-    }//isDeficient
+    } //isDeficient
 
     @tailrec
     private def rebalance(): Unit = {
-      if(isDeficient) {
+      if (isDeficient) {
         val parentNode = parent.get
         val rightSiblingWithSep = getRightSiblingWithSep
         lazy val leftSiblingWithSep = getLeftSiblingWithSep
 
-        ( rightSiblingWithSep, leftSiblingWithSep ) match {
-          case ( Some((sibling, separatorValue)), _ ) if sibling.children.size > minChildrenNumber => {
+        (rightSiblingWithSep, leftSiblingWithSep) match {
+          case (Some((sibling, separatorValue)), _) if sibling.children.size > minChildrenNumber => {
             val separator = parentNode.children(separatorValue)
             children += Data(lastChild, separator.value)
 
@@ -206,7 +206,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
             separator.value = sibling.children.head.value
             sibling.children.remove(0)
           }
-          case ( _, Some((sibling, separatorValue)) ) if sibling.children.size > minChildrenNumber => {
+          case (_, Some((sibling, separatorValue))) if sibling.children.size > minChildrenNumber => {
             val separator = parentNode.children(separatorValue)
             Data(sibling.lastChild, separator.value) +=: children
 
@@ -214,14 +214,14 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
             separator.value = sibling.children.last.value
             sibling.children.remove(sibling.children.size - 1)
           }
-          case ( Some((sibling, separatorValue)), _ ) => {
+          case (Some((sibling, separatorValue)), _) => {
             val separator = parentNode.children(separatorValue)
 
             children += Data(lastChild, separator.value)
             children ++= sibling.children
             lastChild = sibling.lastChild
 
-            if(separatorValue == parentNode.children.size - 1) {
+            if (separatorValue == parentNode.children.size - 1) {
               parentNode.lastChild = Some(this)
             }
             else {
@@ -231,14 +231,14 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
 
             parentNode.children.remove(separatorValue)
 
-            if(parentNode.parent.isEmpty && parentNode.children.isEmpty) {
+            if (parentNode.parent.isEmpty && parentNode.children.isEmpty) {
               lastChild = None
               root = this
             }
             else
               parentNode.rebalance()
           }
-          case ( _, Some((sibling, separatorValue)) ) => {
+          case (_, Some((sibling, separatorValue))) => {
             val separator = parentNode.children(separatorValue)
 
             val newChildren = sibling.children :+ Data(separator.node.get.lastChild, separator.value)
@@ -246,7 +246,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
 
             parentNode.children.remove(separatorValue)
 
-            if(parentNode.parent.isEmpty && parentNode.children.isEmpty) {
+            if (parentNode.parent.isEmpty && parentNode.children.isEmpty) {
               lastChild = None
               root = this
             }
@@ -255,7 +255,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
           }
         }
       }
-    }//rebalance
+    } //rebalance
 
     /**
       * Gets a parent node where the searched value belongs,
@@ -285,7 +285,7 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
             case Some(nextNode) => nextNode.get(searchedValue)
           }
       }
-    }//get
+    } //get
 
     /**
       * Inserts given value at the specified position.
@@ -298,10 +298,10 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
     def insertInLeaf(pos: Int, insertedValue: T): Unit = {
       children.insert(pos, Data(None, insertedValue))
 
-      if(children.size > maxChildrenNumber) {
+      if (children.size > maxChildrenNumber) {
         splitToParent
       }
-    }//insertInLeaf
+    } //insertInLeaf
 
     private def splitToParent = {
       val halfSize = children.size / 2
@@ -328,21 +328,22 @@ class BTree[T: StrictOrdering](parameters: Parameters = Parameters()) {
           root = newRoot
         }
       }
-    }//splitToParent
+    } //splitToParent
 
     private def addToNode(valData: Data): Unit = {
       val insertIndex = children.indexWhere(el => implicitly[StrictOrdering[T]].lessThan(valData.value, el.value))
 
-      if(insertIndex == -1)
+      if (insertIndex == -1)
         children += valData
       else
         children.insert(insertIndex, valData)
 
-      if(children.size > maxChildrenNumber)
+      if (children.size > maxChildrenNumber)
         splitToParent
-    }//addToLeaf
+    } //addToLeaf
 
   }
+
 }
 
 

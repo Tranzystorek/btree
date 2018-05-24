@@ -26,7 +26,7 @@ object Main extends App {
       case addCmd(insertedVal) => {
         val insertedInt = insertedVal.toInt
 
-        if(!btree.contains(insertedInt)) {
+        if (!btree.contains(insertedInt)) {
           println("Adding " + insertedVal)
           btree.add(insertedInt)
         }
@@ -37,7 +37,7 @@ object Main extends App {
       case rmCmd(removedVal) => {
         val removedInt = removedVal.toInt
 
-        if(btree.contains(removedInt)) {
+        if (btree.contains(removedInt)) {
           println("Removing " + removedVal)
           btree.remove(removedInt)
         }
@@ -61,10 +61,10 @@ object Main extends App {
 
   //main
   println("Commands:\n" +
-          "add [Int] - add value to BTree\n" +
-          "rm [Int] - remove value from BTree\n" +
-          "is [Int] - check if a value exists in BTree\n" +
-          "print - print a BST view of BTree\n" +
-          "exit - exit program")
+    "add [Int] - add value to BTree\n" +
+    "rm [Int] - remove value from BTree\n" +
+    "is [Int] - check if a value exists in BTree\n" +
+    "print - print a BST view of BTree\n" +
+    "exit - exit program")
   mainLoop
 }
