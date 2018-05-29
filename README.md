@@ -35,7 +35,9 @@ Available methods:
 
 In src/test/scala directory are Unit Tests for implmented b-tree.
 
+
 ####Samples of tests
+
 ```
 When many values are inserted, BTree contains them.
 ```
@@ -46,9 +48,11 @@ When there are many values, and one is removed, then Btree no longer contains it
 When value is removed, BTree no longer contains it.
 ```
 
+
 ####Running Tests:
 
 Using command ***sbt test*** in terminal, or running IntelliJ IDEA.
+
 
 ##Scaladoc
 
