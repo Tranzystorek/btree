@@ -22,7 +22,7 @@ Using command ***sbt run*** in terminal, or running in IntelliJ IDEA.
 
 Running project starts main loop, which allow to use simple methods. It can show that b-tree really works. Those methods allow to use only integers, but b-tree can contain other comparable types.
 
-Available methods:
+##### Available methods:
 
 * add [Int] - add value to BTree
 * rm [Int] - remove value from BTree
