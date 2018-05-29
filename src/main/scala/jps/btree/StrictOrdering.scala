@@ -7,8 +7,16 @@ package jps.btree
   * @tparam T
   */
 trait StrictOrdering[-T] {
+  /**
+    * Defines a less-than relation.
+    *
+    */
   def lessThan(a: T, b: T): Boolean
 
+  /**
+    * Defines an equals relation.
+    *
+    */
   def equal(a: T, b: T): Boolean
 }
 

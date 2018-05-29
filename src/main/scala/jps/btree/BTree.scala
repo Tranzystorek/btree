@@ -3,6 +3,14 @@ package jps.btree
 import scala.annotation.tailrec
 
 object BTree {
+
+  /**
+    * Represents a single BTree node.
+    *
+    * @param data value entries
+    * @param children child nodes
+    * @tparam T type contained in the btree
+    */
   case class Node[T: StrictOrdering](data: Vector[T], children: Vector[Node[T]]) {
     def isLeaf(): Boolean = children.isEmpty
 
@@ -11,15 +19,33 @@ object BTree {
     }
   }
 
+  /**
+    * Constructs an empty BTree with the specified degree.
+    *
+    * @param degree minimal number of data entries in a single node,
+    *               maximum number is twice as much
+    * @tparam T type contained in the BTree
+    * @return a newly constructed empty BTree
+    */
   def empty[T: StrictOrdering](degree: Int = 5): BTree[T] = BTree(Node[T](Vector.empty, Vector.empty), degree)
 }
 
-case class BTree[T: StrictOrdering](root: BTree.Node[T], degree: Int) {
-  val minDataNumber: Int = degree
-  val maxDataNumber: Int = 2 * degree
+/**
+  * Represents a whole BTree.
+  *
+  */
+case class BTree[T: StrictOrdering](private val root: BTree.Node[T], private val degree: Int) {
+  private val minDataNumber: Int = degree
+  private val maxDataNumber: Int = 2 * degree
 
   private type N = BTree.Node[T]
 
+  /**
+    * Inserts a value in the BTree (only if it does not exist yet).
+    *
+    * @param newValue value to insert
+    * @return a copy of this BTree with the element inserted
+    */
   def insert(newValue: T): BTree[T] = {
 
     val comparator = implicitly[StrictOrdering[T]]
@@ -80,6 +106,12 @@ case class BTree[T: StrictOrdering](root: BTree.Node[T], degree: Int) {
     )
   }
 
+  /**
+    * Remove a value from the BTree (only if it already exists).
+    *
+    * @param oldValue value to be removed
+    * @return a copy of this BTree with the element removed
+    */
   def remove(oldValue: T): BTree[T] = {
 
     val comparator = implicitly[StrictOrdering[T]]
@@ -252,6 +284,12 @@ case class BTree[T: StrictOrdering](root: BTree.Node[T], degree: Int) {
     )
   }//remove
 
+  /**
+    * Check whether an element exists in the BTree.
+    *
+    * @param searchedValue value to be searched
+    * @return true if the value exists in the BTree, false otherwise
+    */
   def contains(searchedValue: T): Boolean = {
 
     val comparator = implicitly[StrictOrdering[T]]
@@ -273,6 +311,11 @@ case class BTree[T: StrictOrdering](root: BTree.Node[T], degree: Int) {
     }
   }//contains
 
+  /**
+    * Present the BTree in human-readable form (DFS view).
+    *
+    * @return String that represents the BTree's contents
+    */
   override def toString: String = {
     def aux(node: N, partialString: String): String = {
       val retString = node.data.mkString(",")
