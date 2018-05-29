@@ -3,39 +3,39 @@ import jps.btree.BTree
 
 class BTreeTest extends org.scalatest.FunSuite {
   test("when value is inserted, BTree contains it") {
-    val btree = new BTree[Int]
-    btree.add(10)
+    var btree = BTree.empty[Int]()
+    btree = btree.insert(10)
 
     assert(btree.contains(10))
   }
 
   test("when value is removed, BTree no longer contains it") {
-    val btree = new BTree[Int]
-    btree.add(10)
+    var btree = BTree.empty[Int]()
+    btree = btree.insert(10)
     assert(btree.contains(10))
 
-    btree.remove(10)
+    btree = btree.remove(10)
     assert(!btree.contains(10))
   }
 
   test("when there are many values, and one is removed, then Btree no longer contains it") {
-    val btree = new BTree[Int]
+    var btree = BTree.empty[Int]()
 
     for(i <- (1 to 11)) {
-      btree.add(i)
+      btree = btree.insert(i)
     }
 
     assert(btree.contains(6))
 
-    btree.remove(6)
+    btree = btree.remove(6)
     assert(!btree.contains(6))
   }
 
   test("when many values are inserted, BTree contains them") {
-    val btree = new BTree[Int]
+    var btree = BTree.empty[Int]()
 
     for(i <- (1 to 11)) {
-      btree.add(i)
+      btree = btree.insert(i)
     }
 
     assert(btree.contains(1))
@@ -52,8 +52,8 @@ class BTreeTest extends org.scalatest.FunSuite {
   }
 
   test("BTree works with strings") {
-    val btree = new BTree[String]
-    btree.add("Abcd")
+    var btree = BTree.empty[String]()
+    btree = btree.insert("Abcd")
 
     assert(btree.contains("Abcd"))
   }

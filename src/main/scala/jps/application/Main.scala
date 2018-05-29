@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 import scala.io.StdIn
 
 object Main extends App {
-  private val btree = new BTree[Int]
+  private var btree = BTree.empty[Int]()
 
   private val numberRegex = "0|-?[1-9]\\d*"
   private val addCmd = raw"""\s*add\s*($numberRegex)\s*""".r
@@ -37,7 +37,7 @@ object Main extends App {
 
         if (!btree.contains(insertedInt)) {
           println("Adding " + insertedVal)
-          btree.add(insertedInt)
+          btree = btree.insert(insertedInt)
         }
         else
           println("Value " + insertedVal + " already exists")
@@ -48,7 +48,7 @@ object Main extends App {
 
         if (btree.contains(removedInt)) {
           println("Removing " + removedVal)
-          btree.remove(removedInt)
+          btree = btree.remove(removedInt)
         }
         else
           println("Value " + removedVal + " does not exist")
@@ -60,7 +60,7 @@ object Main extends App {
       }
       case printCmd(_*) => {
         println("Printing...")
-        btree.printLevels()
+        println(btree.toString)
         mainLoop
       }
       case helpCmd(_*) => {
