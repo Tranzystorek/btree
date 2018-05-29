@@ -170,7 +170,7 @@ case class BTree[T: StrictOrdering](root: BTree.Node[T], degree: Int) {
             children = node.children.updated(childIndex, modifiedChild)
           )
 
-          if(modifiedChild.children.length < minDataNumber) {
+          if(modifiedChild.data.length < minDataNumber) {
             lazy val rightSibling = newNode.children(childIndex + 1)
             lazy val leftSibling = newNode.children(childIndex - 1)
 
@@ -222,9 +222,9 @@ case class BTree[T: StrictOrdering](root: BTree.Node[T], degree: Int) {
           val rightNode = node.children(dataIndex + 1)
           lazy val leftNode = node.children(dataIndex)
 
-          if (rightNode.children.length > minDataNumber)
+          if (rightNode.data.length > minDataNumber)
             rotateLeft(dataIndex, node)
-          else if (leftNode.children.length > minDataNumber)
+          else if (leftNode.data.length > minDataNumber)
             rotateRight(dataIndex, node)
           else {
             val mergedChildren = mergeNodes(oldValue, leftNode, rightNode)
