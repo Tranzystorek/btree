@@ -22,7 +22,7 @@ object Main extends App {
       "add [Int] - add value to BTree\n" +
       "rm [Int] - remove value from BTree\n" +
       "is [Int] - check if a value exists in BTree\n" +
-      "print - print a BST view of BTree\n" +
+      "print - print a DFS view of BTree\n" +
       "help - print this help prompt\n" +
       "exit - exit program")
   }

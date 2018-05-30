@@ -9,6 +9,7 @@ Functional implementation of the B-tree structure in the Scala language. It is a
 ### Requirements
 
 * Scala
+* IntelliJ IDEA with the Scala plugin installed (optional)
 
 ## Build Project
 
@@ -16,24 +17,24 @@ Functional implementation of the B-tree structure in the Scala language. It is a
 
 ### Run
 
-Using command ***sbt run*** in terminal, or running in IntelliJ IDEA.
+Use command ***sbt run*** in terminal, or execute the _run_ task in IntelliJ IDEA.
 
 ## Main Loop
 
-Running project starts main loop, which allow to use simple methods. It can show that b-tree really works. Those methods allow to use only integers, but b-tree can contain other comparable types.
+Running project starts a main loop, which allows to use simple methods. It can show that b-tree really works. Those methods allow to use only integers, but b-tree can contain other comparable types.
 
 ##### Available methods:
 
 * add [Int] - add value to BTree
 * rm [Int] - remove value from BTree
 * is [Int] - check if a value exists in BTree
-* print - print a BST view of BTree
+* print - print a DFS view of BTree
 * help - print help prompt
 * exit - exit program
 
 ## Tests
 
-In src/test/scala directory are Unit Tests for implmented b-tree.
+In the src/test/scala directory are Unit Tests (written using the scalatest framework) for the implemented b-tree.
 
 
 #### Samples of tests
@@ -50,7 +51,7 @@ When value is removed, BTree no longer contains it.
 
 #### Running Tests:
 
-Using command ***sbt test*** in terminal, or running IntelliJ IDEA.
+Use command ***sbt test*** in terminal, or execute the _test_ task in IntelliJ IDEA.
 
 
 ## Scaladoc
