@@ -184,6 +184,92 @@ case class BTree[T: StrictOrdering](private val root: BTree.Node[T], private val
       )
     }//rotateRight
 
+    def removeLeftmost(node: N): (T, N) = {
+      if (node.isLeaf) {
+        val removedValue = node.data.head
+
+        (
+          removedValue,
+          node.copy(
+            data = node.data.drop(1)
+          )
+        )
+      }
+      else {
+        val (removedValue, modifiedChild) = removeLeftmost(node.children.head)
+
+        if (modifiedChild.data.length < minDataNumber) {
+          val separatorValue = node.data.head
+          val rightSibling = node.children(1)
+
+          if (rightSibling.data.length > minDataNumber)
+            (removedValue, rotateLeft(0, node))
+          else {
+            val merged = mergeNodes(separatorValue, modifiedChild, rightSibling)
+
+            (
+              removedValue,
+              node.copy(
+                data = node.data.drop(1),
+                children = node.children.drop(1).updated(0, merged)
+              )
+            )
+          }
+        }
+        else
+          (
+            removedValue,
+            node.copy(
+              children = node.children.updated(0, modifiedChild)
+            )
+          )
+      }
+    }//removeLeftmost
+
+    def removeRightmost(node: N): (T, N) = {
+      if (node.isLeaf) {
+        val removedValue = node.data.last
+
+        (
+          removedValue,
+          node.copy(
+            data = node.data.dropRight(1)
+          )
+        )
+      }
+      else {
+        val (removedValue, modifiedChild) = removeRightmost(node.children.last)
+
+        if (modifiedChild.data.length < minDataNumber) {
+          val separatorValue = node.data.last
+          val leftSiblingIndex = node.children.length - 2
+          val leftSibling = node.children(leftSiblingIndex)
+
+          if (leftSibling.data.length > minDataNumber) {
+            (removedValue, rotateRight(node.data.length - 1, node))
+          }
+          else {
+            val merged = mergeNodes(separatorValue, leftSibling, modifiedChild)
+
+            (
+              removedValue,
+              node.copy(
+                data = node.data.dropRight(1),
+                children = node.children.dropRight(1).updated(leftSiblingIndex, merged)
+              )
+            )
+          }
+        }
+        else
+          (
+            removedValue,
+            node.copy(
+              children = node.children.updated(node.children.length - 1, modifiedChild)
+            )
+          )
+      }
+    }//removeRightmost
+
     def tryRemove(node: N): N = {
 
       val dataIndex = node.data.indexWhere(comparator.equal(oldValue, _))
@@ -196,51 +282,181 @@ case class BTree[T: StrictOrdering](private val root: BTree.Node[T], private val
         else {
           val childIndex = node.childIndex(oldValue)
           val child = node.children(childIndex)
-          val modifiedChild = tryRemove(child)
 
-          val newNode = node.copy(
-            children = node.children.updated(childIndex, modifiedChild)
-          )
+          val childDataIndex = child.data.indexWhere(comparator.equal(oldValue, _))
 
-          if(modifiedChild.data.length < minDataNumber) {
-            lazy val rightSibling = newNode.children(childIndex + 1)
-            lazy val leftSibling = newNode.children(childIndex - 1)
+          if (childDataIndex == -1) {
+            //oldValue is not in child, go deeper
+            val modifiedChild = tryRemove(child)
+            val newNode = node.copy(
+              children = node.children.updated(childIndex, modifiedChild)
+            )
 
-            val hasRight = childIndex < newNode.children.length - 1
-            val hasLeft = childIndex > 0
+            if (modifiedChild.data.length < minDataNumber) {
+              if (childIndex < newNode.children.length - 1) {
+                val rightSiblingIndex = childIndex + 1
+                val rightSibling = newNode.children(rightSiblingIndex)
 
-            if (hasRight && rightSibling.data.length > minDataNumber) {
-              //right sibling exists and has a surplus of children
-              rotateLeft(childIndex, newNode)
+                if (rightSibling.data.length > minDataNumber)
+                  //rotate from right sibling
+                  rotateLeft(childIndex, newNode)
+                else {
+                  val mergeSeparatorValue = newNode.data(childIndex)
+                  val merged = mergeNodes(mergeSeparatorValue, modifiedChild, rightSibling)
+
+                  newNode.copy(
+                    data = newNode.data.take(childIndex) ++ newNode.data.drop(childIndex + 1),
+                    children = (newNode.children.take(childIndex) :+ merged) ++ newNode.children.drop(childIndex + 2)
+                  )
+                }
+              }
+              else {
+                val leftSiblingIndex = childIndex - 1
+                val leftSibling = newNode.children(leftSiblingIndex)
+
+                if (leftSibling.data.length > minDataNumber)
+                  //rotate from left sibling
+                  rotateRight(leftSiblingIndex, newNode)
+                else {
+                  val mergeSeparatorValue = newNode.data(leftSiblingIndex)
+                  val merged = mergeNodes(mergeSeparatorValue, leftSibling, modifiedChild)
+
+                  newNode.copy(
+                    data = newNode.data.take(leftSiblingIndex) ++ newNode.data.drop(leftSiblingIndex + 1),
+                    children = (newNode.children.take(leftSiblingIndex) :+ merged) ++ newNode.children.drop(leftSiblingIndex + 2)
+                  )
+                }
+              }
             }
-            else if (hasLeft && leftSibling.data.length > minDataNumber) {
-              //left sibling exists and has a surplus of children
-              rotateRight(childIndex - 1, newNode)
-            }
-            //merge necessary
-            else if (hasRight) {
-              val separatorValue = newNode.data(childIndex)
-
-              newNode.copy(
-                data = newNode.data.take(childIndex) ++ newNode.data.drop(childIndex + 1),
-                children = (newNode.children.take(childIndex)
-                  :+ mergeNodes(separatorValue, newNode.children(childIndex), rightSibling))
-                  ++ newNode.children.drop(childIndex + 2)
+            else
+              node.copy(
+                children = node.children.updated(childIndex, modifiedChild)
               )
+          }
+          else {
+            //oldValue is in child
+            if (child.isLeaf && child.data.length > minDataNumber) {
+              val newChild = child.copy(
+                data = child.data.take(childDataIndex) ++ child.data.drop(childDataIndex + 1)
+              )
+
+              node.copy(
+                children = node.children.updated(childIndex, newChild)
+              )
+            }
+            else if (childIndex < node.children.length - 1) {
+              //remove leftmost from the right sibling
+              val rightSiblingIndex = childIndex + 1
+              val (newSeparatorValue, modifiedRightSibling) = removeLeftmost(node.children(rightSiblingIndex))
+
+              val oldSeparatorValue = node.data(childIndex)
+              val childWithValueRemoved = child.copy(
+                data = child.data.take(childDataIndex) ++ child.data.drop(childDataIndex + 1) :+ oldSeparatorValue
+              )
+              val newNode = node.copy(
+                data = node.data.updated(childIndex, newSeparatorValue)
+              )
+
+              if (modifiedRightSibling.data.length < minDataNumber) {
+                //rotate/merge
+                if (rightSiblingIndex < node.children.length - 1) {
+                  val nextSiblingIndex = rightSiblingIndex + 1
+                  val nextSibling = node.children(nextSiblingIndex)
+                  val newerNode = newNode.copy(
+                    children = newNode.children.updated(childIndex, childWithValueRemoved)
+                      .updated(rightSiblingIndex, modifiedRightSibling)
+                  )
+
+                  if (nextSibling.data.length > minDataNumber)
+                    //rotate from the next right sibling
+                    rotateLeft(rightSiblingIndex, newerNode)
+                  else {
+                    //merge with the next right sibling
+                    val mergeSeparatorValue = node.data(rightSiblingIndex)
+                    val merged = mergeNodes(mergeSeparatorValue, modifiedRightSibling, nextSibling)
+
+                    newerNode.copy(
+                      data = newerNode.data.take(rightSiblingIndex) ++ newerNode.data.drop(rightSiblingIndex + 1),
+                      children = (newerNode.children.take(rightSiblingIndex) :+ merged) ++ newerNode.children.drop(rightSiblingIndex + 2)
+                    )
+                  }
+                }
+                else {
+                  if (childWithValueRemoved.data.length > minDataNumber)
+                    rotateRight(childIndex, newNode)
+                  else {
+                    val merged = mergeNodes(newSeparatorValue, childWithValueRemoved, modifiedRightSibling)
+
+                    newNode.copy(
+                      data = newNode.data.take(childIndex) ++ newNode.data.drop(childIndex + 1),
+                      children = (newNode.children.take(childIndex) :+ merged) ++ newNode.children.drop(childIndex + 2)
+                    )
+                  }
+                }
+              }
+              else
+                newNode.copy(
+                  children = node.children.updated(childIndex, childWithValueRemoved)
+                    .updated(rightSiblingIndex, modifiedRightSibling)
+                )
             }
             else {
-              val separatorValue = newNode.data(childIndex - 1)
+              //remove rightmost from the left sibling
+              val leftSiblingIndex = childIndex - 1
+              val (newSeparatorValue, modifiedLeftSibling) = removeRightmost(node.children(leftSiblingIndex))
 
-              newNode.copy(
-                data = newNode.data.take(childIndex - 1) ++ newNode.data.drop(childIndex),
-                children = (newNode.children.take(childIndex - 1)
-                  :+ mergeNodes(separatorValue, leftSibling, newNode.children(childIndex)))
-                  ++ newNode.children.drop(childIndex + 1)
+              val oldSeparatorValue = node.data(leftSiblingIndex)
+              val childWithValueRemoved = child.copy(
+                data = oldSeparatorValue +: (child.data.take(childDataIndex) ++ child.data.drop(childDataIndex + 1))
               )
+              val newNode = node.copy(
+                data = node.data.updated(leftSiblingIndex, newSeparatorValue)
+              )
+
+              if (modifiedLeftSibling.data.length < minDataNumber) {
+                //rotate/merge
+                if (leftSiblingIndex > 0) {
+                  val previousSiblingIndex = leftSiblingIndex - 1
+                  val previousSibling = node.children(previousSiblingIndex)
+                  val newerNode = newNode.copy(
+                    children = newNode.children.updated(childIndex, childWithValueRemoved)
+                      .updated(leftSiblingIndex, modifiedLeftSibling)
+                  )
+
+                  if (previousSibling.data.length > minDataNumber)
+                    //rotate from the previous left sibling
+                    rotateRight(previousSiblingIndex, newerNode)
+                  else {
+                    //merge with the previous left sibling
+                    val mergeSeparatorValue = node.data(previousSiblingIndex)
+                    val merged = mergeNodes(mergeSeparatorValue, previousSibling, modifiedLeftSibling)
+
+                    newerNode.copy(
+                      data = newerNode.data.take(previousSiblingIndex) ++ newerNode.data.drop(previousSiblingIndex + 1),
+                      children = (newerNode.children.take(previousSiblingIndex) :+ merged) ++ newerNode.children.drop(previousSiblingIndex + 2)
+                    )
+                  }
+                }
+                else {
+                  if (childWithValueRemoved.data.length > minDataNumber)
+                    rotateLeft(leftSiblingIndex, newNode)
+                  else {
+                    val merged = mergeNodes(newSeparatorValue, modifiedLeftSibling, childWithValueRemoved)
+
+                    newNode.copy(
+                      data = newNode.data.take(leftSiblingIndex) ++ newNode.data.drop(leftSiblingIndex + 1),
+                      children = (newNode.children.take(leftSiblingIndex) :+ merged) ++ newNode.children.drop(leftSiblingIndex + 2)
+                    )
+                  }
+                }
+              }
+              else
+                newNode.copy(
+                  children = newNode.children.updated(leftSiblingIndex, modifiedLeftSibling)
+                    .updated(childIndex, childWithValueRemoved)
+                )
             }
           }
-          else
-            newNode
         }
       }
 
@@ -251,30 +467,64 @@ case class BTree[T: StrictOrdering](private val root: BTree.Node[T], private val
             data = node.data.take(dataIndex) ++ node.data.drop(dataIndex + 1)
           )
         else {
-          val rightNode = node.children(dataIndex + 1)
-          lazy val leftNode = node.children(dataIndex)
+          val rightIndex = dataIndex + 1
+          val rightNode = node.children(rightIndex)
 
-          if (rightNode.data.length > minDataNumber)
-            rotateLeft(dataIndex, node)
-          else if (leftNode.data.length > minDataNumber)
-            rotateRight(dataIndex, node)
-          else {
-            val mergedChildren = mergeNodes(oldValue, leftNode, rightNode)
-            val mergedChildrenWithoutSep = mergedChildren.copy(
-              data = mergedChildren.data.take(minDataNumber) ++ mergedChildren.data.drop(minDataNumber + 1),
-              children = mergedChildren.children.take(minDataNumber) ++ mergedChildren.children.drop(minDataNumber + 1)
-            )
+          val (newValue, modifiedRight) = removeLeftmost(rightNode)
 
-            if (node.data.length > 1)
-              node.copy(
-                data = node.data.take(dataIndex) ++ node.data.drop(dataIndex + 1),
-                children = (node.children.take(dataIndex) :+ mergedChildrenWithoutSep) ++ node.children.drop(dataIndex + 2)
+          val newNode = node.copy(
+            data = node.data.updated(dataIndex, newValue)
+          )
+
+          if (modifiedRight.data.length < minDataNumber) {
+            if (rightIndex < node.children.length - 1) {
+              val nextRightIndex = rightIndex + 1
+              val nextRight = node.children(nextRightIndex)
+
+              val newerNode = newNode.copy(
+                children = newNode.children.updated(rightIndex, modifiedRight)
               )
+
+              if (nextRight.data.length > minDataNumber)
+                //rotate from the next right node
+                rotateLeft(rightIndex, newerNode)
+              else {
+                //merge with next right Node
+                val mergeSeparatorValue = newerNode.data(rightIndex)
+                val merged = mergeNodes(mergeSeparatorValue, modifiedRight, nextRight)
+
+                newerNode.copy(
+                  data = newerNode.data.take(rightIndex) ++ newerNode.data.drop(rightIndex + 1),
+                  children = (newerNode.children.take(rightIndex) :+ merged) ++ newerNode.children.drop(rightIndex + 2)
+                )
+              }
+            }
             else {
-              //destroy root
-              mergedChildrenWithoutSep
+              val leftNode = newNode.children(dataIndex)
+
+              val newerNode = newNode.copy(
+                children = newNode.children.updated(rightIndex, modifiedRight)
+              )
+
+              if (leftNode.data.length > minDataNumber) {
+                //rotate from left node
+                rotateRight(dataIndex, newerNode)
+              }
+              else {
+                //merge with left node
+                val merged = mergeNodes(newValue, leftNode, modifiedRight)
+
+                newerNode.copy(
+                  data = newerNode.data.take(dataIndex) ++ newerNode.data.drop(dataIndex + 1),
+                  children = (newerNode.children.take(dataIndex) :+ merged) ++ newerNode.children.drop(dataIndex + 2)
+                )
+              }
             }
           }
+          else
+            newNode.copy(
+              children = node.children.updated(rightIndex, modifiedRight)
+            )
         }
       }
     }//tryRemove
