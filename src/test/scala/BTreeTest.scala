@@ -51,6 +51,20 @@ class BTreeTest extends org.scalatest.FunSuite {
     assert(btree.contains(11))
   }
 
+  test("when there are many levels, and one element is removed, then it no longer exists") {
+    var btree = BTree.empty[Int](2)
+
+    for(i <- (1 to 17)) {
+      btree = btree.insert(i)
+    }
+
+    assert(btree.contains(12))
+
+    btree = btree.remove(12)
+
+    assert(!btree.contains(12))
+  }
+
   test("BTree works with strings") {
     var btree = BTree.empty[String]()
     btree = btree.insert("Abcd")
